@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: KafkaDemoVPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    # Notice how you can't attach an IGW to a VPC unless both are created:
+    Properties:
+      VpcId: !Ref KafkaDemoVPC
+      InternetGatewayId: !Ref InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref KafkaDemoVPC
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+  KafkaDemoVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsHostnames: true
+      CidrBlock: 10.0.0.0/16
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref KafkaDemoVPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.2.0/24
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+        VpcId: !Ref KafkaDemoVPC
+        AvailabilityZone: !Select [ 1, !GetAZs '' ]
+        CidrBlock: 10.0.3.0/24
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref KafkaDemoVPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.4.0/24
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnetA
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref KafkaDemoVPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.0.5.0/24
+
+Outputs:
+  VpcId:
+    Export:
+      Name: KafkaDemoVPC
+    Value: !Ref KafkaDemoVPC
+  PrivateSubnet1AId:
+    Export:
+      Name: PrivateSubnet1AId
+    Value: !Ref PrivateSubnetA
+  PrivateSubnet1BId:
+    Export:
+      Name: PrivateSubnet1BId
+    Value: !Ref PrivateSubnetB
+  PublicSubnet1AId:
+    Export:
+      Name: PublicSubnet1AId
+    Value: !Ref PublicSubnetA
+  PublicSubnet1BId:
+    Export:
+      Name: PublicSubnet1BId
+    Value: !Ref PublicSubnetB

@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  UserData:
+    Description: Instance user UserData
+    Type: String
+
+Resources:
+  WebServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: KafkaDemoCluster-WebServerGroup
+      VPCZoneIdentifier: 
+        - subnet-09b3adfd4e4be727f
+        - subnet-0dc077ed134195992
+      LaunchConfigurationName:
+        Ref: LaunchConfig
+      MinSize: 3
+      MaxSize: 3
+      # LoadBalancerNames:
+      #   - !Ref ApplicationLoadBalancer
+      TargetGroupARNs:
+        - Ref: ALBTargetGroup1
+        - Ref: ALBTargetGroup2
+
+  ALBTargetGroup1:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 9092
+      Protocol: TCP
+      VpcId: vpc-03828dee0a9bfcc5a
+
+  ALBTargetGroup2:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 2181
+      Protocol: TCP
+      VpcId: vpc-03828dee0a9bfcc5a
+
+  ALBListener1:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: ALBTargetGroup1
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 9092
+      Protocol: TCP
+
+  ALBListener2:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: ALBTargetGroup2
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 2181
+      Protocol: TCP
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: network
+      Subnets:
+        - subnet-09b3adfd4e4be727f
+        - subnet-0dc077ed134195992
+
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      KeyName: roman_test
+      ImageId: ami-09def150731bdbcc2
+      # SecurityGroups:
+      # - Ref: InstanceSecurityGroup
+      InstanceType: t2.small
+      UserData: !Ref UserData
+      IamInstanceProfile: arn:aws:iam::229176864149:instance-profile/admin_assumed_ec2_role
+  
+  # InstanceSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Enable SSH access and HTTP from the load balancer only
+  #     SecurityGroupIngress:
+  #     - IpProtocol: tcp
+  #       FromPort: '22'
+  #       ToPort: '22'
+  #       CidrIp:
+  #         Ref: SSHLocation
+  #     - IpProtocol: tcp
+  #       FromPort: '80'
+  #       ToPort: '80'
+  #       SourceSecurityGroupId:
+  #         Fn::Select:
+  #         - 0
+  #         - Fn::GetAtt:
+  #           - ApplicationLoadBalancer
+  #           - SecurityGroups
+  #     VpcId:
+  #       Ref: VpcId

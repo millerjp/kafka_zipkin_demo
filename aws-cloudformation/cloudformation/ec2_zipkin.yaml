@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"  
+
+Parameters:
+  UserData:
+    Description: Instance user UserData
+    Type: String
+
+Resources:  
+  KafkaInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      ImageId: ami-091f14f40a8cf0acc
+      KeyName: roman_test
+      UserData: !Ref UserData
+      SubnetId: subnet-09b3adfd4e4be727f
+
+Outputs:
+  KafkaInstance:
+    Export:
+      Name: KafkaInstance
+    Value: !Ref KafkaInstance

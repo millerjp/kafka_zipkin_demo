@@ -1,0 +1,158 @@
+---
+version: '3'
+services:
+  zipkin:
+    image: openzipkin/zipkin:2.12.9
+    hostname: zipkin
+    container_name: zipkin
+    environment:
+      STORAGE_TYPE: mem
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - 9411:9411
+    depends_on:
+      - kafka
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.1.2
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:5.1.2
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - 9092:9092
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+    depends_on:
+      - zookeeper
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.1.2
+    hostname: schema-registry
+    container_name: schema-registry
+    ports:
+      - 8081:8081
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: localhost
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+    depends_on:
+      - kafka
+
+  connect:
+    image: confluentinc/kafka-connect-datagen:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: connect
+    container_name: connect
+    depends_on:
+      - zookeeper
+      - kafka
+      - schema-registry
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      # Assumes image is based on confluentinc/kafka-connect-datagen:latest which is pulling 5.1.2 Connect image
+      CLASSPATH: "/etc/connect/jars/kafka-interceptor-zipkin.jar:/usr/share/java/monitoring-interceptors/monitoring-interceptors-5.1.2.jar"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components,/etc/kafka-connect/jars"
+      CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
+      CONNECT_CONSUMER_ZIPKIN_SENDER_TYPE: "HTTP"
+      CONNECT_CONSUMER_ZIPKIN_HTTP_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+      CONNECT_CONSUMER_ZIPKIN_LOCAL_SERVICE_NAME: "kafka-connect"
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "no.sysco.middleware.kafka.interceptor.zipkin.TracingConsumerInterceptor"
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: "no.sysco.middleware.kafka.interceptor.zipkin.TracingProducerInterceptor"
+    volumes:
+      - //c/src/kafka-interceptor-zipkin-0.4.2.jar:/etc/kafka-connect/jars/kafka-interceptor-zipkin.jar
+#      - ./lib/kafka-interceptor-zipkin.jar:/usr/share/java/ksql-server/kafka-interceptor-zipkin.jar
+
+  postgres:
+    image: postgres
+    hostname: postgres
+    container_name: postgres
+    environment:
+      POSTGRES_PASSWORD: example
+  adminer:
+    image: adminer
+    hostname: adminer
+    container_name: adminer
+    ports:
+      - 18080:8080
+
+  ksql-server:
+    image: confluentinc/cp-ksql-server:5.1.2
+    hostname: ksql-server
+    container_name: ksql-server
+    ports:
+      - 8088:8088
+    environment:
+      KSQL_CUB_KAFKA_TIMEOUT: 300
+      KSQL_BOOTSTRAP_SERVERS: kafka:9092
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KSQL_KSQL_SERVICE_ID: ksql-server
+      CLASSPATH: "/usr/share/java/ksql-server/kafka-interceptor-zipkin.jar"
+      KSQL_CONSUMER_INTERCEPTOR_CLASSES: "no.sysco.middleware.kafka.interceptor.zipkin.TracingConsumerInterceptor"
+      KSQL_ZIPKIN_SENDER_TYPE: "HTTP"
+      KSQL_ZIPKIN_HTTP_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+      KSQL_ZIPKIN_LOCAL_SERVICE_NAME: "ksql"
+      KSQL_PRODUCER_INTERCEPTOR_CLASSES: "no.sysco.middleware.kafka.interceptor.zipkin.TracingProducerInterceptor"
+    volumes:
+      - //c/src/kafka-interceptor-zipkin-0.4.2.jar:/usr/share/java/ksql-server/kafka-interceptor-zipkin.jar
+#      - ./lib/kafka-interceptor-zipkin.jar:/usr/share/java/ksql-server/kafka-interceptor-zipkin.jar
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:5.1.2
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      - zookeeper
+      - kafka
+      - schema-registry
+      - connect
+      - ksql-server
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      CONTROL_CENTER_CONNECT_CLUSTER: 'connect:8083'
+      CONTROL_CENTER_KSQL_URL: "http://ksql-server:8088"
+      CONTROL_CENTER_KSQL_ADVERTISED_URL: "http://localhost:8088"
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021

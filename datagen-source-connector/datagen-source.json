@@ -1,0 +1,13 @@
+{
+  "name": "datagen-users",
+  "config": {
+    "connector.class": "io.confluent.kafka.connect.datagen.DatagenConnector",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true",
+    "kafka.topic": "tp_meetup_input",
+    "max.interval": "1000",
+    "iterations": "100000000",
+    "quickstart": "users"
+  }
+}

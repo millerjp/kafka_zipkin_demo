@@ -1,0 +1,38 @@
+---
+version: '3'
+services:
+  input-stream-processor:
+    image: input-stream-processor
+    hostname: input-stream-processor
+    container_name: input-stream-processor
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+
+  agg-stream-processor-1:
+    image: agg-stream-processor
+    hostname: agg-stream-processor-1
+    container_name: agg-stream-processor-1
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_APPLICATION_ID=stream-agg-1
+
+  agg-stream-processor-2:
+    image: agg-stream-processor
+    hostname: agg-stream-processor-2
+    container_name: agg-stream-processor-2
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_APPLICATION_ID=stream-agg-1
+
+  agg-stream-processor-3:
+    image: agg-stream-processor
+    hostname: agg-stream-processor-3
+    container_name: agg-stream-processor-3
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_APPLICATION_ID=stream-agg-2
+      - ZIPKIN_SERVICE_NAME=stream-processor-agg-2
