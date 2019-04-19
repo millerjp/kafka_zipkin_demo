@@ -1,6 +1,6 @@
 ## Kafka Meetup 04-2019
 ##### Catch me if you can, Introduction to distributed tracing with kafka and zipkin
-Slides: https://github.com/ThinkportRepo/kafka_zipkin_demo/slides
+Slides: https://github.com/ThinkportRepo/kafka_zipkin_demo/slides/KafkaMeetupApril2019.pdf
 
 
 ### Pre-requisites
