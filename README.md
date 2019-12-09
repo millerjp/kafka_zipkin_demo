@@ -1,4 +1,4 @@
-## Kafka Meetup 04-2019
+## Talk: Distributed Tracing with Kafka and Zipkin
 ##### Catch me if you can, Introduction to distributed tracing with kafka and zipkin
 Slides: https://github.com/ThinkportRepo/kafka_zipkin_demo/blob/master/slides/KafkaMeetupApril2019.pdf
 
